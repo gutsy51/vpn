@@ -1,0 +1,12 @@
+* text=auto
+*.md text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.cjs text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.service text eol=lf
+*.example text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
