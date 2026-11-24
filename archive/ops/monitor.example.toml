@@ -1,0 +1,37 @@
+probe = "external-vps"
+failure_threshold = 3
+
+[[checks]]
+name = "adminvps-tcp"
+kind = "tcp"
+host = "vpn-node.example.com"
+port = 443
+public = true
+
+# [[checks]]
+# name = "second-node-tcp"
+# kind = "tcp"
+# host = "vpn-reserve.example.com"
+# port = 443
+# public = true
+
+# [[checks]]
+# name = "peer-from-ru"
+# kind = "tcp"
+# host = "vpn-reserve.example.com"
+# port = 443
+# proxy_port = 1081
+
+# [[checks]]
+# name = "adminvps-web"
+# kind = "https"
+# url = "https://vpn-node.example.com/health"
+# status = 200
+
+# SOCKS должен принадлежать отдельному клиенту VPN на самом наблюдателе.
+# [[checks]]
+# name = "adminvps-tunnel"
+# kind = "tunnel"
+# proxy_port = 10808
+# url = "https://www.gstatic.com/generate_204"
+# status = 204

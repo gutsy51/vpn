@@ -11,7 +11,9 @@ from textual.widgets import Footer, Header, Label, OptionList, RichLog, Static
 from textual.widgets.option_list import Option
 
 from .add_server import AddServer
+from .bot_screen import BotLogs, ManagerBackend
 from .config import Node
+from .log_text import LogText
 from .services import inspect_service
 
 
@@ -24,6 +26,7 @@ class Dashboard(App):
         Binding("3", "logs", "Журнал"),
         Binding("4", "overview", "Обновить все"),
         Binding("5", "add", "Добавить"),
+        Binding("6", "bots", "Боты"),
         Binding("tab", "focus_next", "Фокус"),
         Binding("0", "quit", "Выход"),
     ]
@@ -35,14 +38,21 @@ class Dashboard(App):
     OptionList { height: 1fr; }
     #target { height: auto; padding: 1; }
     RichLog { height: 1fr; padding: 0 1; }
+    #server-log { height: 1fr; display: none; }
     #activity { height: auto; padding-left: 1; }
     .failure { color: $error; }
     """
 
-    def __init__(self, nodes: list[Node], env_file: Path = Path(".env")):
+    def __init__(
+        self,
+        nodes: list[Node],
+        env_file: Path = Path(".env"),
+        manager: ManagerBackend | None = None,
+    ):
         super().__init__()
         self.targets = [(node, service) for node in nodes for service in node.services]
         self.env_file = env_file
+        self.manager = manager
         self.results: dict[int, tuple[str, str]] = {}
         self.summary = True
         self.selected = 0
@@ -59,15 +69,21 @@ class Dashboard(App):
                 yield Label("Состояние", id="view")
                 yield Static(id="target", markup=False)
                 yield RichLog(wrap=True, markup=False, highlight=False, auto_scroll=False)
+                yield LogText(read_only=True, show_line_numbers=False, id="server-log")
                 yield Static(id="activity", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
         self.query_one(OptionList).focus()
-        self.action_overview()
+        if self.manager is not None:
+            self.draw_summary()
+            self.action_bots()
+        else:
+            self.action_overview()
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool:
-        if isinstance(self.screen, AddServer) and action in {
+        if isinstance(self.screen, (AddServer, BotLogs)) and action in {
+            "bots",
             "summary",
             "overview",
             "status",
@@ -78,6 +94,11 @@ class Dashboard(App):
             return False
 
         return True
+
+    def action_bots(self) -> None:
+        self.revision += 1
+        self.workers.cancel_group(self, "ssh")
+        self.push_screen(BotLogs(self.env_file, self.manager))
 
     def action_add(self) -> None:
         self.revision += 1
@@ -110,6 +131,8 @@ class Dashboard(App):
         screen.query_one("#view", Label).update("Сводка")
         screen.query_one("#target", Static).update("Последние результаты проверок")
         pane = screen.query_one(RichLog)
+        pane.display = True
+        screen.query_one("#server-log", LogText).display = False
         pane.clear()
 
         for index, (node, unit) in enumerate(self.targets):
@@ -161,10 +184,12 @@ class Dashboard(App):
         self.revision += 1
         self.workers.cancel_group(self, "ssh")
         self.query_one("#target", Static).update(f"{node.name} / {unit}   SSH :{node.port}")
-        self.query_one(RichLog).clear()
+        self.query_one("#server-log", LogText).display = False
         self.logs = False
         self.query_one("#view", Label).update("Карточка службы")
         pane = self.query_one(RichLog)
+        pane.display = True
+        pane.clear()
         pane.write(f"Узел           {node.name}")
         pane.write(f"Служба         {unit}")
         pane.write(f"Транспорт      SSH, порт {node.port}")
@@ -204,7 +229,12 @@ class Dashboard(App):
         node, unit = self.targets[self.selected]
         self.query_one("#target", Static).update(f"{node.name} / {unit}")
         self.query_one("#view", Label).update("Журнал" if self.logs else "Состояние")
-        self.query_one(RichLog).clear()
+        pane = self.query_one(RichLog)
+        pane.display = not self.logs
+        pane.clear()
+        log = self.query_one("#server-log", LogText)
+        log.display = self.logs
+        log.load_text("")
         self.activity("Запрос по SSH...")
         self.fetch(node, unit, self.logs, self.revision)
 
@@ -219,10 +249,11 @@ class Dashboard(App):
             return
 
         if revision == self.revision:
-            pane = self.query_one(RichLog)
-            pane.write(result)
-
             if logs:
+                pane = self.query_one("#server-log", LogText)
+                pane.load_text(result)
                 pane.scroll_end(animate=False)
+            else:
+                self.query_one(RichLog).write(result)
 
             self.activity("Обновлено в " + datetime.now().strftime("%H:%M:%S"))

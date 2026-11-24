@@ -5,6 +5,7 @@ from io import TextIOWrapper
 from pathlib import Path
 
 from .config import inventory
+from .server_manager import ServerManager
 from .services import inspect_service
 from .ui import Dashboard
 
@@ -24,6 +25,9 @@ def arguments() -> argparse.Namespace:
     groups.add_parser("config").add_argument("operation", choices=["check"])
     groups.add_parser("ui")
     groups.add_parser("nodes")
+    groups.add_parser("serve", help="Запустить менеджер с Telegram-ботом")
+    groups.add_parser("start", help="Запустить службу менеджера на AdminVPS")
+    groups.add_parser("attach", help="Открыть экран менеджера AdminVPS")
 
     for action in ("check", "logs"):
         command = groups.add_parser(action)
@@ -38,6 +42,22 @@ def execute(args: argparse.Namespace) -> None:
 
     if args.action == "config":
         print(f"Конфигурация проверена. Узлов: {len(nodes)}")
+    elif args.action == "serve":
+        from .manager_control import ManagerControl
+        from .telegram import serve
+
+        asyncio.run(ManagerControl(args.env_file).supervise(lambda: serve(nodes, args.env_file)))
+    elif args.action in ("start", "attach"):
+        node = next((node for node in nodes if node.name.casefold() == "adminvps"), None)
+        if node is None:
+            raise ValueError("AdminVPS отсутствует в инвентаре")
+
+        manager = ServerManager(node)
+        if args.action == "start":
+            asyncio.run(manager.change("start"))
+            print("Служба менеджера на AdminVPS запущена")
+        else:
+            Dashboard(nodes, args.env_file, manager=manager).run()
     elif args.action == "nodes":
         for node in nodes:
             print(node.name, ", ".join(node.services))

@@ -1,0 +1,21 @@
+name: personal-vpn
+services:
+  xray:
+    image: ghcr.io/xtls/xray-core:26.7.28@sha256:b697cda1588faca696ab7f7755dd1161f60862af3ff6026300e44cff6aedd558
+    command: ["run", "-c", "/etc/personal-vpn/xray.json"]
+    restart: unless-stopped
+    ports:
+      - "443:8443/tcp"
+    volumes:
+      - type: bind
+        source: ${XRAY_CONFIG_FILE:-./.local/xray.json}
+        target: /etc/personal-vpn/xray.json
+        read_only: true
+        bind:
+          create_host_path: false
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"

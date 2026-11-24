@@ -3,7 +3,13 @@ name = "personal-vpn-manager"
 version = "0.2.0"
 description = "Управление личной VPN-инфраструктурой"
 requires-python = ">=3.11"
-dependencies = ["textual>=1", "asyncssh>=2", "python-dotenv>=1"]
+dependencies = [
+    "textual>=1",
+    "asyncssh>=2",
+    "python-dotenv>=1",
+    "aiogram[proxy]>=3,<4",
+    "filelock>=4.3.1",
+]
 
 [project.scripts]
 vpn-manager = "src.main:main"

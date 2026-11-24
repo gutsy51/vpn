@@ -1,0 +1,26 @@
+[Unit]
+Description=Менеджер личного VPN
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=vpn-manager
+Group=vpn-manager
+WorkingDirectory=/opt/vpn
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+StateDirectory=vpn-manager
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/vpn/.venv/bin/vpn-manager --env-file /etc/vpn-manager/.env serve --config /etc/vpn-manager/monitor.toml --state /var/lib/vpn-manager/state.sqlite3
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=55
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

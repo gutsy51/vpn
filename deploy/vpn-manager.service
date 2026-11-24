@@ -1,0 +1,18 @@
+[Unit]
+Description=VPN Manager Telegram bot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=vpn-manager
+Group=vpn-manager
+WorkingDirectory=/opt/vpn-manager
+ExecStart=/opt/vpn-manager/.venv/bin/python -m src.main --env-file /var/lib/vpn-manager/.env serve
+StateDirectory=vpn-manager
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
